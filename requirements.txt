@@ -1,0 +1,16 @@
+# Pinned for determinism. This is the full transitive tree of THIS package's own
+# declared dependencies; protobuf and grpcio are supplied by the Axiom runtime and
+# are not pinned here (both permissive: protobuf BSD-3-Clause, grpcio Apache-2.0).
+# Every dependency below is permissive, zero transitive deps of its own — verified
+# by reading each distribution's own LICENSE text, not registry metadata:
+#   PyYAML     — MIT (owns YAML parsing/emission; safe_load/safe_dump only, never
+#               the full Loader/Dumper — see messages.proto's security note)
+#   tomlkit    — MIT (owns TOML parsing/emission, style- and comment-preserving)
+#   defusedxml — PSFL (Python Software Foundation License; owns XML parsing,
+#               hardened against XXE and billion-laughs by rejecting any DOCTYPE)
+# No copyleft anywhere in the tree. (stdlib json and xml.etree.ElementTree — used
+# for JSON encode/decode and for building/serializing XML output — ship with
+# Python itself under the PSF license and need no separate pin.)
+PyYAML==6.0.3
+tomlkit==0.15.1
+defusedxml==0.7.1

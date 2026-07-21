@@ -1,0 +1,311 @@
+// This file defines the data contracts (messages) for your Axiom package.
+// Every node's --input and --output refers to a message defined here.
+//
+// Run `axiom create message <Name>` to scaffold a new message below.
+// Run `axiom generate` to compile these definitions into language bindings in gen/.
+//
+// DOCUMENTATION
+//   Comments written directly above a message or field declaration are extracted
+//   automatically at publish time and shown in the Axiom registry as documentation.
+//   Write your descriptions there — no separate doc files needed.
+//
+//   Leading comment  (no blank line before the declaration) → registry description ✓
+//   Detached comment (blank line before the declaration)    → ignored by registry  ✗
+//
+// This file is yours to edit. Axiom only appends new message blocks — it never
+// overwrites or removes content you have written.
+//
+// Data contracts for christiangeorgelucas/dataformat-tools.
+//
+// Structured-data format conversion between JSON, YAML, TOML, and XML, plus
+// per-format validation and pretty-print/minify. JSON is the hub: every
+// cross-format conversion goes through a JSON-shaped intermediate value, so
+// a conversion NOT offered directly (YAML<->TOML, XML<->TOML, XML<->YAML)
+// composes by chaining two nodes in a flow (e.g. YamlToJson -> JsonToToml)
+// instead of needing its own node — same value, still deterministic.
+//
+// SECURITY. YAML is parsed with PyYAML's safe_load ONLY — never the default
+// full Loader, which can construct arbitrary Python objects from crafted
+// input (a known YAML-deserialization RCE class). XML is parsed with
+// defusedxml, which refuses any DOCTYPE declaration outright, closing both
+// the XXE class (external entity expansion reading local files / SSRF) and
+// the "billion laughs" class (internal entity expansion exhausting memory)
+// at the parser level rather than by pattern-matching the input text. Every
+// text input accepted by any node in this package is capped at 5 MB
+// (5,000,000 bytes, checked on the raw UTF-8 byte length before parsing
+// begins); an oversized input is rejected with TOO_LARGE rather than parsed.
+//
+// Malformed input never crashes a node — every output message carries an
+// `error` field, unset on success.
+
+syntax = "proto3";
+
+package christiangeorgelucas.dataformat_tools;
+
+option go_package = ".;gen";
+
+// A structured, deterministic failure. Unset on success.
+message Error {
+  // Stable machine-readable code, one of:
+  //   INVALID_INPUT     — the source text is not well-formed in its claimed
+  //                       format (a YAML/TOML/XML/JSON syntax error).
+  //   UNSUPPORTED_VALUE — the parsed value cannot be represented in the
+  //                       target format (e.g. a JSON null converted to TOML,
+  //                       which has no null; or a JSON array/string/number
+  //                       at the document root converted to TOML, which
+  //                       requires a top-level table).
+  //   TOO_LARGE         — the input exceeds the 5 MB size bound.
+  //   INVALID_ARGUMENT  — a non-content argument is wrong (e.g. an XML
+  //                       root_name that is not a valid XML name).
+  //   INTERNAL          — this package itself faulted; the caller's input
+  //                       may be perfectly valid. Nodes never surface a
+  //                       traceback, so this is what an unexpected fault
+  //                       looks like.
+  string code = 1;
+  // Human-readable detail naming what was rejected and why. Includes the
+  // line/column of a syntax error when the underlying parser reports one.
+  string message = 2;
+}
+
+// ── JSON as text, the hub format's own I/O shapes ───────────────────────────
+
+// A JSON document to validate, format, or use as a conversion source.
+message JsonInput {
+  // JSON text (object, array, or any JSON scalar).
+  string json = 1;
+}
+
+// The shared result envelope for every node that produces JSON text.
+message JsonResult {
+  // The resulting JSON text. Empty when `error` is set.
+  string json = 1;
+  // Set when the request failed; unset on success.
+  Error error = 2;
+}
+
+// ── YAML ─────────────────────────────────────────────────────────────────
+
+// A YAML document to validate, format, or use as a conversion source.
+message YamlInput {
+  // YAML 1.1 text (a single document; a multi-document stream separated by
+  // "---" is rejected — see YamlToJson's description).
+  string yaml = 1;
+}
+
+// The shared result envelope for every node that produces YAML text.
+message YamlResult {
+  // The resulting YAML text. Empty when `error` is set.
+  string yaml = 1;
+  // Set when the request failed; unset on success.
+  Error error = 2;
+}
+
+// ── TOML ─────────────────────────────────────────────────────────────────
+
+// A TOML document to validate, format, or use as a conversion source.
+message TomlInput {
+  // TOML text.
+  string toml = 1;
+}
+
+// The shared result envelope for every node that produces TOML text.
+message TomlResult {
+  // The resulting TOML text. Empty when `error` is set.
+  string toml = 1;
+  // Set when the request failed; unset on success.
+  Error error = 2;
+}
+
+// ── XML ──────────────────────────────────────────────────────────────────
+
+// An XML document to validate, format, or use as a conversion source.
+message XmlInput {
+  // XML text. Any DOCTYPE declaration (internal or external) is rejected
+  // outright, regardless of what it declares — see the package-level
+  // security note above.
+  string xml = 1;
+}
+
+// The shared result envelope for every node that produces XML text.
+message XmlResult {
+  // The resulting XML text. Empty when `error` is set.
+  string xml = 1;
+  // Set when the request failed; unset on success.
+  Error error = 2;
+}
+
+// ── Conversions (JSON is the hub) ───────────────────────────────────────
+
+// Input for YamlToJson.
+message YamlToJsonRequest {
+  // The source YAML text.
+  string yaml = 1;
+  // Alphabetize object keys in the output JSON. When false (the default),
+  // keys keep the order they appear in the source — still fully
+  // deterministic, since that order is itself a deterministic function of
+  // the input.
+  bool sort_keys = 2;
+}
+
+// Input for JsonToYaml.
+message JsonToYamlRequest {
+  // The source JSON text.
+  string json = 1;
+  // Alphabetize object keys in the output YAML (block style, 2-space
+  // indent). When false (the default), keys keep the order they appear in
+  // the source.
+  bool sort_keys = 2;
+}
+
+// Input for TomlToJson.
+message TomlToJsonRequest {
+  // The source TOML text.
+  string toml = 1;
+  // Alphabetize object keys in the output JSON. When false (the default),
+  // keys keep the order they appear in the source (TOML preserves table and
+  // key order).
+  bool sort_keys = 2;
+  // TOML's native offset-datetime / local-datetime / local-date / local-time
+  // values have no JSON equivalent and always become ISO-8601 strings in the
+  // output regardless of this flag — round-tripping the result back through
+  // JsonToToml produces a plain TOML string, not a native TOML datetime.
+}
+
+// Input for JsonToToml.
+message JsonToTomlRequest {
+  // The source JSON text. Must decode to a JSON object at the top level —
+  // TOML documents are always a table — and must not contain a JSON `null`
+  // anywhere (TOML has no null); either violation is UNSUPPORTED_VALUE.
+  string json = 1;
+  // Alphabetize output keys. When false (the default), keys keep the order
+  // they appear in the source.
+  bool sort_keys = 2;
+}
+
+// Input for XmlToJson.
+message XmlToJsonRequest {
+  // The source XML text.
+  string xml = 1;
+}
+
+// Input for JsonToXml.
+message JsonToXmlRequest {
+  // The source JSON text. Output is always indented 2-space XML with no
+  // XML declaration ("<?xml version=...?>") prolog.
+  string json = 1;
+  // The XML root element's tag name. When `json` is a JSON object with
+  // EXACTLY ONE top-level key, that key is used as the root tag and
+  // `root_name` is ignored if set (this mirrors XmlToJson's own output
+  // convention, so XmlToJson -> JsonToXml round-trips without setting this
+  // field). Otherwise `root_name` is REQUIRED and non-empty, and the entire
+  // `json` value becomes the root element's content. Must be a valid XML
+  // Name (starts with a letter or "_"; remaining characters letters,
+  // digits, "_", "-", "."; case-insensitive "xml" prefix reserved) or
+  // INVALID_ARGUMENT.
+  string root_name = 2;
+}
+
+// ── Validate ─────────────────────────────────────────────────────────────
+
+// The result of validating a document against its claimed format.
+message ValidateResult {
+  // True iff the input is well-formed in its claimed format.
+  bool valid = 1;
+  // Human-readable reason the input is not well-formed. Empty when valid.
+  string error_message = 2;
+  // 1-based line of the syntax error, when the underlying parser reports
+  // one; 0 when unknown or valid.
+  int32 line = 3;
+  // 1-based column of the syntax error, when the underlying parser reports
+  // one; 0 when unknown or valid.
+  int32 column = 4;
+}
+
+// ── Format (pretty-print / minify / canonicalize, same format in and out) ──
+
+// Input for FormatJson.
+message FormatJsonRequest {
+  // The source JSON text (also validated: malformed JSON is INVALID_INPUT).
+  string json = 1;
+  // True: indent with `indent` spaces per level. False: compact
+  // single-line output with no insignificant whitespace (minify).
+  bool pretty = 2;
+  // Spaces per indent level when `pretty` is true. Defaults to 2 when 0.
+  // Ignored when `pretty` is false.
+  int32 indent = 3;
+  // Alphabetize object keys. When false (the default), keys keep the order
+  // they appear in the source.
+  bool sort_keys = 4;
+}
+
+// Input for FormatYaml.
+message FormatYamlRequest {
+  // The source YAML text (also validated: malformed YAML is INVALID_INPUT).
+  string yaml = 1;
+  // Alphabetize object keys. When false (the default), keys keep the order
+  // they appear in the source.
+  bool sort_keys = 2;
+  // Spaces per indent level. Defaults to 2 when 0.
+  int32 indent = 3;
+}
+
+// Input for FormatToml.
+message FormatTomlRequest {
+  // The source TOML text (also validated: malformed TOML is INVALID_INPUT).
+  string toml = 1;
+  // Alphabetize output keys. When false (the default), keys keep the source
+  // order. Setting this rebuilds the document from parsed values, so any
+  // TOML comments in the source are NOT preserved when true (they ARE
+  // preserved, along with original formatting, when false).
+  bool sort_keys = 2;
+}
+
+// Input for FormatXml.
+message FormatXmlRequest {
+  // The source XML text (also validated: malformed XML is INVALID_INPUT).
+  string xml = 1;
+  // True: re-indent with `indent` spaces per level, one element per line.
+  // False: minify — remove insignificant inter-element whitespace, single
+  // line.
+  bool pretty = 2;
+  // Spaces per indent level when `pretty` is true. Defaults to 2 when 0.
+  int32 indent = 3;
+}
+
+// ── DetectFormat ─────────────────────────────────────────────────────────
+
+// Input for DetectFormat.
+message DetectInput {
+  // Text of unknown format to classify.
+  string text = 1;
+}
+
+// One format's detection score.
+message FormatScore {
+  // "json" | "yaml" | "toml" | "xml".
+  string format = 1;
+  // 0.0-1.0, how confidently `text` parses as this format. Formats are not
+  // mutually exclusive at the syntax level (YAML's grammar in particular is
+  // a superset that also accepts plain scalar text), so scores do not sum
+  // to 1 — see DetectFormat's description for the disambiguation order.
+  double confidence = 2;
+}
+
+// DetectFormat's result.
+message DetectResult {
+  // Best-guess format: "json" | "yaml" | "toml" | "xml" | "unknown". Ties
+  // are broken JSON > XML > TOML > YAML (most-to-least structurally
+  // distinctive syntax; a YAML-only match is the weakest signal because
+  // YAML's grammar also accepts plain scalar text that every other format
+  // would reject).
+  string format = 1;
+  // The winning format's own confidence (0 when format is "unknown").
+  double confidence = 2;
+  // All four formats' scores, sorted descending by confidence, for a caller
+  // who wants the runner-up or its own threshold.
+  repeated FormatScore candidates = 3;
+  // Set only on TOO_LARGE; detection otherwise never fails outright — input
+  // that parses as none of the four formats returns format="unknown" with
+  // confidence 0, not an error.
+  Error error = 4;
+}

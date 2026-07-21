@@ -1,0 +1,157 @@
+name: christiangeorgelucas/dataformat-tools
+version: 0.1.0
+language: python
+description: >-
+  Composable structured-data format-conversion nodes for JSON, YAML, TOML, and
+  XML — convert each format to/from JSON (the hub), validate each format with
+  line/column error detail, pretty-print/minify each format, and detect an
+  unknown text's format. Wraps PyYAML (MIT, safe_load/safe_dump only),
+  tomlkit (MIT), and defusedxml (PSFL, hardened against XXE and
+  billion-laughs). Stateless, offline, deterministic; every text input is
+  capped at 5 MB and malformed input returns a structured error rather than
+  crashing.
+author: Christian George Lucas
+license: MIT
+nodes:
+    - name: YamlToJson
+      description: >-
+        Convert a YAML document to JSON text, parsed with PyYAML's safe_load
+        (never the full Loader, which can construct arbitrary Python objects
+        from crafted input). Object keys keep source order unless sort_keys
+        is set. A multi-document YAML stream ("---" separated) or a document
+        whose top level is not a mapping/sequence/scalar YAML can express is
+        rejected with INVALID_INPUT, as is any input over 5 MB (TOO_LARGE).
+      input: YamlToJsonRequest
+      output: JsonResult
+    - name: JsonToYaml
+      description: >-
+        Convert JSON text to a YAML document (block style, 2-space indent),
+        via PyYAML's safe_dump. Object keys keep source order unless
+        sort_keys is set. Malformed JSON is INVALID_INPUT; input over 5 MB is
+        TOO_LARGE.
+      input: JsonToYamlRequest
+      output: YamlResult
+    - name: TomlToJson
+      description: >-
+        Convert a TOML document to JSON text via tomlkit. Object keys keep
+        source order unless sort_keys is set. TOML's native datetime/date/
+        time values become ISO-8601 strings (JSON has no datetime type) —
+        round-tripping the result back through JsonToToml produces a plain
+        TOML string, not a native TOML datetime. Malformed TOML is
+        INVALID_INPUT; input over 5 MB is TOO_LARGE.
+      input: TomlToJsonRequest
+      output: JsonResult
+    - name: JsonToToml
+      description: >-
+        Convert JSON text to a TOML document via tomlkit. The JSON must
+        decode to an object at the top level (TOML documents are always a
+        table) and must not contain a JSON null anywhere (TOML has no null)
+        — either violation is UNSUPPORTED_VALUE, naming the offending
+        location. Object keys keep source order unless sort_keys is set.
+        Malformed JSON is INVALID_INPUT; input over 5 MB is TOO_LARGE.
+      input: JsonToTomlRequest
+      output: TomlResult
+    - name: XmlToJson
+      description: >-
+        Convert an XML document to JSON text, parsed with defusedxml (any
+        DOCTYPE — internal or external — is rejected outright, closing both
+        XXE and billion-laughs at the parser level). Convention: the result
+        is a JSON object with exactly one top-level key, the root element's
+        tag name; an element's attributes become "@name" keys, text content
+        alongside attributes/children becomes a "#text" key, a text-only
+        leaf element becomes a bare JSON string, and repeated same-tag
+        sibling elements become a JSON array — the same convention
+        JsonToXml consumes, so the pair round-trips. Malformed/non-well-
+        formed XML or a DOCTYPE is INVALID_INPUT; input over 5 MB is
+        TOO_LARGE.
+      input: XmlToJsonRequest
+      output: JsonResult
+    - name: JsonToXml
+      description: >-
+        Convert JSON text to an XML document (indented, 2-space output; no
+        XML declaration prolog), inverse of XmlToJson's convention ("@name"
+        keys become attributes, a "#text" key becomes text content, array
+        values become repeated sibling elements). When the JSON is an object
+        with exactly one top-level key that key names the root element;
+        otherwise root_name is required. See JsonToXmlRequest for the exact
+        rule and root_name's naming constraints (INVALID_ARGUMENT if
+        violated). Malformed JSON is INVALID_INPUT; input over 5 MB is
+        TOO_LARGE.
+      input: JsonToXmlRequest
+      output: XmlResult
+    - name: ValidateJson
+      description: >-
+        Check whether text is well-formed JSON, reporting the syntax error's
+        line and column when it is not. Input over 5 MB is reported via
+        valid=false rather than parsed.
+      input: JsonInput
+      output: ValidateResult
+    - name: ValidateYaml
+      description: >-
+        Check whether text is well-formed YAML (via safe_load), reporting
+        the syntax error's line and column when it is not. Input over 5 MB
+        is reported via valid=false rather than parsed.
+      input: YamlInput
+      output: ValidateResult
+    - name: ValidateToml
+      description: >-
+        Check whether text is well-formed TOML, reporting the syntax
+        error's line and column when it is not. Input over 5 MB is reported
+        via valid=false rather than parsed.
+      input: TomlInput
+      output: ValidateResult
+    - name: ValidateXml
+      description: >-
+        Check whether text is well-formed XML, parsed with defusedxml (any
+        DOCTYPE is itself a validation failure, not a security exception —
+        it is reported the same as any other syntax error), reporting the
+        error's line and column when malformed. Input over 5 MB is reported
+        via valid=false rather than parsed.
+      input: XmlInput
+      output: ValidateResult
+    - name: FormatJson
+      description: >-
+        Re-serialize JSON text as pretty-printed (indented) or compact
+        (minified, single-line) JSON, optionally alphabetizing keys. Also
+        validates: malformed JSON is INVALID_INPUT. Input over 5 MB is
+        TOO_LARGE.
+      input: FormatJsonRequest
+      output: JsonResult
+    - name: FormatYaml
+      description: >-
+        Re-serialize YAML text through PyYAML's safe_load/safe_dump,
+        canonicalizing its block-style formatting to a fixed indent width,
+        optionally alphabetizing keys. Also validates: malformed YAML is
+        INVALID_INPUT. Input over 5 MB is TOO_LARGE.
+      input: FormatYamlRequest
+      output: YamlResult
+    - name: FormatToml
+      description: >-
+        Re-serialize TOML text through tomlkit. With sort_keys false
+        (default), reformatting preserves the source's original formatting
+        and comments unchanged (tomlkit is style-preserving) — this is a
+        validating no-op pass-through for already-well-formed TOML. With
+        sort_keys true, the document is rebuilt from parsed values with
+        keys alphabetized, which does NOT preserve comments. Also validates:
+        malformed TOML is INVALID_INPUT. Input over 5 MB is TOO_LARGE.
+      input: FormatTomlRequest
+      output: TomlResult
+    - name: FormatXml
+      description: >-
+        Re-serialize XML text (parsed with defusedxml) as pretty-printed
+        (indented, one element per line) or minified (no insignificant
+        inter-element whitespace) XML. Also validates: malformed XML or a
+        DOCTYPE is INVALID_INPUT. Input over 5 MB is TOO_LARGE.
+      input: FormatXmlRequest
+      output: XmlResult
+    - name: DetectFormat
+      description: >-
+        Guess which of JSON/YAML/TOML/XML a text is, by attempting to parse
+        it as each and scoring how confidently it matches (JSON/XML/TOML
+        require an actual parse success; YAML is scored lowest among
+        successful parses because its grammar also accepts plain scalar
+        text every other format would reject). Returns the best guess plus
+        every format's own score. Input over 5 MB returns TOO_LARGE via the
+        error field instead of format="unknown".
+      input: DetectInput
+      output: DetectResult
