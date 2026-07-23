@@ -1,7 +1,7 @@
 # dataformat-tools
 
 Composable structured-data format-conversion nodes for the
-[Axiom](https://axiom.dev) marketplace, published as
+[Axiom](https://axiomide.com) marketplace, published as
 `christiangeorgelucas/dataformat-tools`.
 
 Convert between JSON, YAML, TOML, and XML; validate each with line/column
