@@ -6,8 +6,7 @@ from nodes._shared import ConversionError, dump_json, parse_json
 def format_json(ax: AxiomContext, input: FormatJsonRequest) -> JsonResult:
     """Re-serialize JSON text as pretty-printed (indented) or compact
     (minified, single-line) JSON, optionally alphabetizing keys. Also
-    validates: malformed JSON is INVALID_INPUT. Input over 5 MB is
-    TOO_LARGE.
+    validates: malformed JSON is INVALID_INPUT.
     """
     try:
         value = parse_json(input.json)

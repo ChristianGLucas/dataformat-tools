@@ -5,8 +5,7 @@ from nodes._shared import ConversionError, parse_toml
 
 def validate_toml(ax: AxiomContext, input: TomlInput) -> ValidateResult:
     """Check whether text is well-formed TOML, reporting the syntax error's
-    line and column when it is not. Input over 5 MB is reported via
-    valid=false rather than parsed.
+    line and column when it is not.
     """
     try:
         parse_toml(input.toml)

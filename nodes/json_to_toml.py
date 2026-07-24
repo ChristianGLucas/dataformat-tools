@@ -8,8 +8,8 @@ def json_to_toml(ax: AxiomContext, input: JsonToTomlRequest) -> TomlResult:
     to an object at the top level (TOML documents are always a table) and
     must not contain a JSON null anywhere (TOML has no null) — either
     violation is UNSUPPORTED_VALUE, naming the offending location. Object
-    keys keep source order unless sort_keys is set. Malformed JSON or input
-    over 5 MB is rejected with a structured error rather than converted.
+    keys keep source order unless sort_keys is set. Malformed JSON
+    is rejected with a structured error rather than converted.
     """
     try:
         value = parse_json(input.json)

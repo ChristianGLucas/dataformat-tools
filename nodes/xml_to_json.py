@@ -12,7 +12,7 @@ def xml_to_json(ax: AxiomContext, input: XmlToJsonRequest) -> JsonResult:
     children becomes a "#text" key, a text-only leaf element becomes a bare
     JSON string, and repeated same-tag sibling elements become a JSON array —
     the same convention JsonToXml consumes, so the pair round-trips.
-    Malformed/non-well-formed XML, a DOCTYPE, or input over 5 MB is rejected
+    Malformed/non-well-formed XML or a DOCTYPE is rejected
     with a structured error rather than converted.
     """
     try:

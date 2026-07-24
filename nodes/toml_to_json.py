@@ -7,7 +7,7 @@ def toml_to_json(ax: AxiomContext, input: TomlToJsonRequest) -> JsonResult:
     """Convert a TOML document to JSON text via tomlkit. Object keys keep
     source order unless sort_keys is set. TOML's native datetime/date/time
     values become ISO-8601 strings (JSON has no datetime type). Malformed
-    TOML or input over 5 MB is rejected with a structured error rather than
+    TOML is rejected with a structured error rather than
     converted.
     """
     try:

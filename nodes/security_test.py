@@ -13,7 +13,6 @@ from gen.messages_pb2 import (
     YamlInput,
     YamlToJsonRequest,
 )
-from nodes._shared import MAX_INPUT_BYTES
 from nodes.format_xml import format_xml
 from nodes.testkit import assert_error, assert_invalid, ax
 from nodes.validate_xml import validate_xml
@@ -82,26 +81,17 @@ def test_yaml_unsafe_object_tag_rejected_via_validate_yaml():
     assert_invalid(validate_yaml(ax(), YamlInput(yaml=YAML_RCE_PAYLOAD)))
 
 
-def test_oversized_yaml_input_is_too_large_not_parsed():
-    oversized = "a: " + ("x" * (MAX_INPUT_BYTES + 1))
-    result = yaml_to_json(ax(), YamlToJsonRequest(yaml=oversized))
-    assert_error(result, "TOO_LARGE")
+def test_large_yaml_input_does_not_crash():
+    # No payload size limit is imposed by this node -- the platform owns
+    # that. A large-but-well-formed document parses cleanly.
+    large = "a: " + ("x" * 6_000_000)
+    result = yaml_to_json(ax(), YamlToJsonRequest(yaml=large))
+    assert not result.error.code
 
 
-def test_oversized_xml_input_is_too_large_not_parsed():
-    oversized = "<a>" + ("x" * (MAX_INPUT_BYTES + 1)) + "</a>"
-    result = xml_to_json(ax(), XmlToJsonRequest(xml=oversized))
-    assert_error(result, "TOO_LARGE")
-
-
-def test_input_exactly_at_the_size_limit_is_accepted():
-    # MAX_INPUT_BYTES itself is the boundary, not the first rejected size.
-    padding = "x" * (MAX_INPUT_BYTES - len('{"a":""}'))
-    payload = '{"a":"' + padding + '"}'
-    assert len(payload.encode("utf-8")) == MAX_INPUT_BYTES
-    result = yaml_to_json(ax(), YamlToJsonRequest(yaml=payload))
-    # It's valid YAML (a flow-style mapping) and exactly at the bound, so it
-    # must be accepted, not rejected as TOO_LARGE.
+def test_large_xml_input_does_not_crash():
+    large = "<a>" + ("x" * 6_000_000) + "</a>"
+    result = xml_to_json(ax(), XmlToJsonRequest(xml=large))
     assert not result.error.code
 
 

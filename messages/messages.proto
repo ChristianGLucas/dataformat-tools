@@ -30,10 +30,9 @@
 // defusedxml, which refuses any DOCTYPE declaration outright, closing both
 // the XXE class (external entity expansion reading local files / SSRF) and
 // the "billion laughs" class (internal entity expansion exhausting memory)
-// at the parser level rather than by pattern-matching the input text. Every
-// text input accepted by any node in this package is capped at 5 MB
-// (5,000,000 bytes, checked on the raw UTF-8 byte length before parsing
-// begins); an oversized input is rejected with TOO_LARGE rather than parsed.
+// at the parser level rather than by pattern-matching the input text.
+// Payload size limits are the platform's job, not this package's — no node
+// here imposes a byte-size cap.
 //
 // Malformed input never crashes a node — every output message carries an
 // `error` field, unset on success.
@@ -54,7 +53,6 @@ message Error {
   //                       which has no null; or a JSON array/string/number
   //                       at the document root converted to TOML, which
   //                       requires a top-level table).
-  //   TOO_LARGE         — the input exceeds the 5 MB size bound.
   //   INVALID_ARGUMENT  — a non-content argument is wrong (e.g. an XML
   //                       root_name that is not a valid XML name).
   //   INTERNAL          — this package itself faulted; the caller's input
@@ -304,8 +302,7 @@ message DetectResult {
   // All four formats' scores, sorted descending by confidence, for a caller
   // who wants the runner-up or its own threshold.
   repeated FormatScore candidates = 3;
-  // Set only on TOO_LARGE; detection otherwise never fails outright — input
-  // that parses as none of the four formats returns format="unknown" with
-  // confidence 0, not an error.
+  // Detection never fails outright — input that parses as none of the four
+  // formats returns format="unknown" with confidence 0, not an error.
   Error error = 4;
 }

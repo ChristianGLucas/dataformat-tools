@@ -10,7 +10,7 @@ def json_to_xml(ax: AxiomContext, input: JsonToXmlRequest) -> XmlResult:
     elements). When the JSON is an object with exactly one top-level key,
     that key names the root element and root_name is ignored; otherwise
     root_name is required (INVALID_ARGUMENT if missing or not a valid XML
-    name). Malformed JSON or input over 5 MB is rejected with a structured
+    name). Malformed JSON is rejected with a structured
     error rather than converted.
     """
     try:

@@ -7,8 +7,7 @@ def validate_xml(ax: AxiomContext, input: XmlInput) -> ValidateResult:
     """Check whether text is well-formed XML, parsed with defusedxml (any
     DOCTYPE is itself a validation failure, not a security exception — it is
     reported the same as any other syntax error), reporting the error's line
-    and column when malformed. Input over 5 MB is reported via valid=false
-    rather than parsed.
+    and column when malformed.
     """
     try:
         parse_xml(input.xml)

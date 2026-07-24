@@ -12,7 +12,7 @@ def format_toml(ax: AxiomContext, input: FormatTomlRequest) -> TomlResult:
     pass-through for already-well-formed TOML. With sort_keys true, the
     document is rebuilt from parsed values with keys alphabetized, which
     does NOT preserve comments. Also validates: malformed TOML is
-    INVALID_INPUT. Input over 5 MB is TOO_LARGE.
+    INVALID_INPUT.
     """
     try:
         doc = parse_toml_document(input.toml)

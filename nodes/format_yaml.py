@@ -7,7 +7,7 @@ def format_yaml(ax: AxiomContext, input: FormatYamlRequest) -> YamlResult:
     """Re-serialize YAML text through PyYAML's safe_load/safe_dump,
     canonicalizing its block-style formatting to a fixed indent width,
     optionally alphabetizing keys. Also validates: malformed YAML is
-    INVALID_INPUT. Input over 5 MB is TOO_LARGE.
+    INVALID_INPUT.
     """
     try:
         value = parse_yaml(input.yaml)

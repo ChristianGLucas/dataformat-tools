@@ -1,6 +1,6 @@
 from gen.axiom_context import AxiomContext
 from gen.messages_pb2 import DetectInput, DetectResult, Error, FormatScore
-from nodes._shared import ConversionError, check_size, detect_format_scores
+from nodes._shared import ConversionError, detect_format_scores
 
 
 def detect_format(ax: AxiomContext, input: DetectInput) -> DetectResult:
@@ -9,11 +9,8 @@ def detect_format(ax: AxiomContext, input: DetectInput) -> DetectResult:
     actual parse success; YAML is scored lowest among successful parses
     because its grammar also accepts plain scalar text every other format
     would reject). Returns the best guess plus every format's own score.
-    Input over 5 MB returns TOO_LARGE via the error field instead of
-    format="unknown".
     """
     try:
-        check_size(input.text)
         scores = detect_format_scores(input.text)
         candidates = [FormatScore(format=fmt, confidence=conf) for fmt, conf in scores]
         best_format, best_conf = scores[0]

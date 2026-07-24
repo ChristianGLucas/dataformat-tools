@@ -6,7 +6,7 @@ from nodes._shared import ConversionError, dump_yaml, parse_json
 def json_to_yaml(ax: AxiomContext, input: JsonToYamlRequest) -> YamlResult:
     """Convert JSON text to a YAML document (block style, 2-space indent), via
     PyYAML's safe_dump. Object keys keep source order unless sort_keys is
-    set. Malformed JSON or input over 5 MB is rejected with a structured
+    set. Malformed JSON is rejected with a structured
     error rather than converted.
     """
     try:

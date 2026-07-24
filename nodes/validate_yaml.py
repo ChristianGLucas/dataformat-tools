@@ -5,8 +5,7 @@ from nodes._shared import ConversionError, parse_yaml
 
 def validate_yaml(ax: AxiomContext, input: YamlInput) -> ValidateResult:
     """Check whether text is well-formed YAML (via safe_load), reporting the
-    syntax error's line and column when it is not. Input over 5 MB is
-    reported via valid=false rather than parsed.
+    syntax error's line and column when it is not.
     """
     try:
         parse_yaml(input.yaml)

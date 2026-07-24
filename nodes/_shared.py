@@ -1,8 +1,9 @@
 """Shared parsing/serialization helpers for christiangeorgelucas/dataformat-tools.
 
 Every node funnels its parsing through the helpers here so the security
-posture (safe YAML loading, hardened XML parsing, the 5 MB size bound) and
-the JSON<->XML dict convention are defined exactly once, not once per node.
+posture (safe YAML loading, hardened XML parsing) and the JSON<->XML dict
+convention are defined exactly once, not once per node. Payload size is the
+platform's job, not this package's — no node here imposes a byte-size cap.
 
 SECURITY, read this before touching parse_yaml/parse_xml:
   - YAML: yaml.safe_load ONLY. yaml.load()/yaml.Loader (the non-safe default)
@@ -15,15 +16,14 @@ SECURITY, read this before touching parse_yaml/parse_xml:
     (EntitiesForbidden/DTDForbidden), which closes both XXE (external entity
     expansion reading local files / SSRF) and "billion laughs" (internal
     entity expansion exhausting memory) at the parser level.
-  - Every parse_* function checks input size FIRST, before any parsing work,
-    against MAX_INPUT_BYTES.
-  - Every parse_* function also tolerates RecursionError (deeply nested
-    input can exceed Python's recursion limit — verified empirically for
-    the C-accelerated json decoder, PyYAML's pure-Python composer, and our
-    own recursive XML<->dict conversion: all three raise a catchable
+  - Every parse_* function tolerates RecursionError (deeply nested input can
+    exceed Python's recursion limit — verified empirically for the
+    C-accelerated json decoder, PyYAML's pure-Python composer, and our own
+    recursive XML<->dict conversion: all three raise a catchable
     RecursionError rather than crashing the process) and reports it as a
     structured INVALID_INPUT rather than letting it propagate as a raw
-    traceback.
+    traceback. That guard is domain-correctness (never crash), not a size
+    cap — it fires however small the input is if nesting is deep enough.
 """
 
 from __future__ import annotations
@@ -41,9 +41,6 @@ from defusedxml.common import DTDForbidden, EntitiesForbidden, ExternalReference
 import defusedxml.ElementTree as DefusedET
 from tomlkit.exceptions import TOMLKitError
 
-MAX_INPUT_BYTES = 5_000_000  # 5 MB, enforced before any parse begins.
-
-
 class ConversionError(Exception):
     """A structured (code, message[, line, column]) failure a node can catch
     and turn directly into its output message's `error`/`ValidateResult` shape.
@@ -55,15 +52,6 @@ class ConversionError(Exception):
         self.message = message
         self.line = line
         self.column = column
-
-
-def check_size(text: str) -> None:
-    n = len(text.encode("utf-8", errors="surrogatepass"))
-    if n > MAX_INPUT_BYTES:
-        raise ConversionError(
-            "TOO_LARGE",
-            f"input is {n} bytes, exceeding the {MAX_INPUT_BYTES}-byte limit",
-        )
 
 
 def json_type_name(value: Any) -> str:
@@ -93,7 +81,6 @@ def _yaml_error_pos(exc: "yaml.YAMLError") -> tuple[int, int]:
 
 
 def parse_yaml(text: str) -> Any:
-    check_size(text)
     try:
         return yaml.safe_load(text)
     except yaml.YAMLError as exc:
@@ -128,7 +115,6 @@ def _json_default(o: Any) -> str:
 
 
 def parse_json(text: str) -> Any:
-    check_size(text)
     try:
         return _json.loads(text)
     except _json.JSONDecodeError as exc:
@@ -186,7 +172,6 @@ def parse_toml_document(text: str) -> "tomlkit.TOMLDocument":
     lossy rebuild. Prefer parse_toml() below for anything that needs a
     plain JSON-compatible value.
     """
-    check_size(text)
     try:
         return tomlkit.parse(text)
     except TOMLKitError as exc:
@@ -234,7 +219,6 @@ def valid_xml_name(name: str) -> bool:
 
 
 def parse_xml(text: str) -> ET.Element:
-    check_size(text)
     try:
         # forbid_dtd=True rejects EVERY DOCTYPE outright, not just ones that
         # declare entities -- defusedxml's own default (forbid_dtd=False)
@@ -367,8 +351,7 @@ def detect_format_scores(text: str) -> list[tuple[str, float]]:
     """Score `text` against each of json/xml/toml/yaml, highest first (ties
     broken json > xml > toml > yaml, per DetectFormat's documented rule).
     Does NOT raise ConversionError for a bad/ambiguous parse -- a format
-    that fails to parse simply scores 0.0. The caller is still responsible
-    for the TOO_LARGE size check before calling this.
+    that fails to parse simply scores 0.0.
     """
     scores: dict[str, float] = {"json": 0.0, "xml": 0.0, "toml": 0.0, "yaml": 0.0}
 
